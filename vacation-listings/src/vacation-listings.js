@@ -7,7 +7,7 @@ const saveListing = async (listing) => {
 
   const client = new Client({
     user: 'postgres',
-    host: 'localhost',
+    host: process.env.POSTGRES_HOST || 'localhost',
     database: 'postgres',
     port: 5432,
   })
@@ -52,7 +52,7 @@ const matchObjectPropertyRegexOrNull = (object, property, regex) => {
 
 const transformListing = (listing) => ({
   title: listing.title,
-  price: parseInt((listing.price.match(/\$([0-9]*)/) || [])[1] || 0, 10),
+  price: parseInt(((listing.price || '').match(/\$([0-9]*)/) || [])[1] || 0, 10),
   location: matchObjectPropertyRegexOrNull(listing, 'location', /\((.*)\)/),
   bedroom_count: matchObjectPropertyRegexOrNull(listing, 'housing', /([0-9]*)br/),
   size: matchObjectPropertyRegexOrNull(listing, 'housing', /([0-9]*)ft2/),
@@ -64,8 +64,8 @@ const transformListing = (listing) => ({
   longitude: matchObjectPropertyRegexOrNull(listing, 'google_maps_link', /,([0-9.-]*),/),
 });
 
-const isListingUrl = (url) => /newyork\.craigslist\.org\/(.*)\/vac\/d\/(.*)\.html(?<!#)$/.test(url);
-const isIndexUrl = (url) => /newyork\.craigslist\.org\/search\/vac\?s=(.*)/.test(url);
+const isListingUrl = (url) => /newyork\.craigslist\.org\/(.*)\/?vac\/d\/(.*)\.html(?<!#)$/.test(url);
+const isIndexUrl = (url) => /newyork\.craigslist\.org\/search\/vac\?s=([0-9]*)$/.test(url);
 
 module.exports = {
   extract: async ($, page) => ({
@@ -86,7 +86,7 @@ module.exports = {
       await saveListing(transformListing(jobResult.data))
     }
 
-    if (snapshot.queue.done.length >= 5)
+    if (snapshot.queue.done.length >= 100)
       await stop()
 
     return jobResult;
@@ -96,12 +96,11 @@ module.exports = {
     FunctionName: 'vacation-listings',
     InvocationType: 'Event',
   }).promise()
-    .then((data) => console.log('data', data))
     .catch((err) => console.log(err, err.stack)),
   url: 'https://newyork.craigslist.org/d/vacation-rentals/search/vac',
   config: {
     name: 'vacation-listings',
-    concurrencyLimit: 1,
+    concurrencyLimit: 2,
     depthLimit: 100,
     delay: 3000,
   },

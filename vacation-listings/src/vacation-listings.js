@@ -109,10 +109,10 @@ module.exports = {
   connection: {
     redis: {
       port: 6379,
-      host: 'localhost'
+      host: process.env.REDIS_HOST || 'localhost'
     },
     chrome: {
-      browserWSEndpoint: 'ws://localhost:3000',
+      browserWSEndpoint: `ws://${process.env.CHROME_HOST || 'localhost'}:3000`,
     },
   }
 };

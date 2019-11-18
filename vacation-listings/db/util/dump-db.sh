@@ -1,0 +1,12 @@
+pg_dump \
+  --clean \
+  --create \
+  --file=setup.sql \
+  --format=plain \
+  --schema=listing \
+  --no-owner \
+  --schema-only \
+  --no-privileges \
+  --host=localhost \
+  --port=5432 \
+  --username=postgres

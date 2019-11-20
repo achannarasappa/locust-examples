@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "rm -f ./src.zip && npm install && zip -r ./src.zip ./",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Ani Channarasappa",

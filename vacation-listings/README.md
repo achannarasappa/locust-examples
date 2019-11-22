@@ -6,6 +6,7 @@ Example Locust web scraper to collect the latest Craigslist vacation home listin
 
 ### Setup
 
+1. Setup [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html)
 1. Install [terraform](https://www.terraform.io/downloads.html)
 
 ### Deploy

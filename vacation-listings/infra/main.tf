@@ -43,7 +43,7 @@ module "db" {
   engine            = "postgres"
   engine_version    = "10.10"
   instance_class    = "db.t3.micro"
-  allocated_storage = 1
+  allocated_storage = 5
   storage_encrypted = false
 
   name     = "postgres"
@@ -56,11 +56,12 @@ module "db" {
   maintenance_window      = "Mon:00:00-Mon:03:00"
   backup_window           = "03:00-06:00"
   backup_retention_period = 0
+  family                  = "postgres10"
+  major_engine_version    = "10.10"
 
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
-  subnet_ids = concat(module.vpc.public_subnets, module.vpc.private_subnets)
-  # subnet_ids = [formatlist("%s", concat(module.vpc.public_subnets, module.vpc.private_subnets))]
+  subnet_ids          = concat(module.vpc.public_subnets, module.vpc.private_subnets)
   deletion_protection = false
 }
 

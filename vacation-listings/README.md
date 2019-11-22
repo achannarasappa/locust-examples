@@ -13,12 +13,23 @@ Example Locust web scraper to collect the latest Craigslist vacation home listin
 
 1. Zip source from project root
   ```
-  zip -r ./infra/src.zip ./
+  npm run build
   ```
 1. Deploy infrastructure and source
   ```
   terraform apply
   ```
+
+### Invoke
+
+```
+aws lambda invoke \
+--invocation-type Event \
+--function-name vacation-listings \
+--region us-east-1  \
+--profile default \
+out.txt
+```
 
 ## Local
 

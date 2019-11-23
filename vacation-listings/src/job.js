@@ -87,7 +87,7 @@ module.exports = {
       await saveListing(transformListing(jobResult.data))
     }
 
-    if (snapshot.queue.done.length >= 25)
+    if (snapshot.queue.done.length >= 100)
       await stop()
 
     return jobResult;

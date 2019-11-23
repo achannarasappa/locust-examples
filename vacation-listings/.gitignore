@@ -5,3 +5,4 @@ node_modules
 *tfstate*
 !package*.json
 infra/.terraform
+*.tfvars

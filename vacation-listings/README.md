@@ -27,6 +27,8 @@ Example Locust web scraper to collect the latest 100 Craigslist vacation home li
     cd infra && terraform apply
     ```
 
+More information in the [deployment guide](https://locust.dev/docs/deploy)
+
 ### Invoke
 
 ```sh
@@ -37,6 +39,8 @@ aws lambda invoke \
 --profile default \
 out.txt
 ```
+
+More information in the [operational guide](https://locust.dev/docs/operate)
 
 ### Notes
 

@@ -8,7 +8,9 @@ Example Locust web scraper to collect the latest 100 Craigslist vacation home li
 
 1. Setup and configure [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html)
 1. Install [terraform](https://www.terraform.io/downloads.html)
-    * Run `terraform init` in the `infra` directory
+1.  Run `terraform init` in the `infra` directory
+1. Install [Postgres CLI 10.x (psql)](https://www.postgresql.org/download/)
+    * `psql` is nesecessary to run the `db/schema/setup.sql` on the RDS instance. The `provisioner` block can alternately be commented out and any Postgres client can be used to run the setup script
 
 ### Deploy
 
@@ -35,6 +37,10 @@ aws lambda invoke \
 --profile default \
 out.txt
 ```
+
+### Notes
+
+* Security - The infrastructure in this example is not intended for production or long-term use cases as it prioritizes convenience over security
 
 ## Local
 

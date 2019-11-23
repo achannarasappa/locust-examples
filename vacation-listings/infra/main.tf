@@ -12,7 +12,7 @@ module "vpc" {
 
   azs             = ["us-east-1c", "us-east-1d"]
   private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
-  public_subnets  = ["10.0.101.0/24"]
+  public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
 
   enable_nat_gateway = true
   single_nat_gateway = true
@@ -32,6 +32,13 @@ module "vpc" {
   vpc_tags = {
     Name = "locust-vpc"
   }
+
+  create_database_subnet_group           = true
+  create_database_subnet_route_table     = true
+  create_database_internet_gateway_route = true
+
+  enable_dns_hostnames = true
+  enable_dns_support   = true
 }
 
 module "db" {
@@ -51,6 +58,8 @@ module "db" {
   password = var.postgres_password
   port     = var.postgres_port
 
+  publicly_accessible = true
+
   vpc_security_group_ids = ["${module.locust.security_group_id}"]
 
   maintenance_window      = "Mon:00:00-Mon:03:00"
@@ -61,7 +70,7 @@ module "db" {
 
   enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
 
-  subnet_ids          = concat(module.vpc.public_subnets, module.vpc.private_subnets)
+  subnet_ids          = module.vpc.public_subnets
   deletion_protection = false
 }
 
@@ -100,4 +109,24 @@ resource "aws_lambda_function" "locust_job" {
     }
   }
 
+}
+
+data "http" "myip" {
+  url = "http://ipv4.icanhazip.com"
+}
+
+resource "aws_security_group_rule" "postgres_remote_connection" {
+  type        = "ingress"
+  from_port   = tonumber(var.postgres_port)
+  to_port     = tonumber(var.postgres_port)
+  protocol    = "-1"
+  cidr_blocks = ["${chomp(data.http.myip.body)}/32"]
+
+  security_group_id = "${module.locust.security_group_id}"
+}
+
+resource "null_resource" "db_setup" {
+  provisioner "local-exec" {
+    command = "PGPASSWORD=${var.postgres_password} psql -h ${module.db.this_db_instance_address} -p ${var.postgres_port} -f ../db/schema/setup.sql ${var.postgres_database} ${var.postgres_user}"
+  }
 }

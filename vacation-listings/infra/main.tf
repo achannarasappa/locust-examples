@@ -88,7 +88,7 @@ resource "aws_lambda_function" "locust_job" {
 
   handler = "src/handler.start"
   runtime = "nodejs10.x"
-  timeout = 15
+  timeout = 60
 
   role = "${module.locust.iam_role_arn}"
 
@@ -101,7 +101,7 @@ resource "aws_lambda_function" "locust_job" {
     variables = {
       CHROME_HOST       = "${module.locust.chrome_hostname}"
       REDIS_HOST        = "${module.locust.redis_hostname}"
-      POSTGRES_HOST     = "${module.db.this_db_instance_endpoint}"
+      POSTGRES_HOST     = "${module.db.this_db_instance_address}"
       POSTGRES_USER     = "${var.postgres_user}"
       POSTGRES_PASSWORD = "${var.postgres_password}"
       POSTGRES_DATABASE = "${var.postgres_database}"

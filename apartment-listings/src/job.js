@@ -57,7 +57,7 @@ const transformListing = (listing) => ({
   location: matchObjectPropertyRegexOrNull(listing, 'location', /\((.*)\)/),
   bedroom_count: matchObjectPropertyRegexOrNull(listing, 'housing', /([0-9]*)br/),
   size: matchObjectPropertyRegexOrNull(listing, 'housing', /([0-9]*)ft2/),
-  date_posted: moment(listing.datetime).format('YYYY-MM-DD HH:mm:ss'),
+  date_posted: listing.datetime ? moment(listing.datetime).format('YYYY-MM-DD HH:mm:ss') : null,
   attributes: JSON.stringify(listing.attributes || []),
   images: JSON.stringify(listing.images || []),
   description: listing.description,
@@ -65,11 +65,11 @@ const transformListing = (listing) => ({
   longitude: matchObjectPropertyRegexOrNull(listing, 'google_maps_link', /,([0-9.-]*),/),
 });
 
-const isListingUrl = (url) => /newyork\.craigslist\.org\/(.*)\/?vac\/d\/(.*)\.html(?<!#)$/.test(url);
-const isIndexUrl = (url) => /newyork\.craigslist\.org\/search\/vac\?s=([0-9]*)$/.test(url);
+const isListingUrl = (url) => /newyork\.craigslist\.org\/(.*)\/?apa\/d\/(.*)\.html(?<!#)$/.test(url);
+const isIndexUrl = (url) => /newyork\.craigslist\.org\/search\/apa\?s=([0-9]*)$/.test(url);
 
 module.exports = {
-  extract: async ($, page) => ({
+  extract: async ($, page) => transformListing({
     'title': await $('.postingtitletext #titletextonly'),
     'price': await $('.postingtitletext .price'),
     'housing': await $('.postingtitletext .housing'),
@@ -84,7 +84,7 @@ module.exports = {
 
     if (isListingUrl(jobResult.response.url)) {
 
-      await saveListing(transformListing(jobResult.data))
+      await saveListing(jobResult.data)
     }
 
     if (snapshot.queue.done.length >= 100)
@@ -94,13 +94,13 @@ module.exports = {
 
   },
   start: () => lambda.invoke({
-    FunctionName: 'vacation-listings',
+    FunctionName: 'apartment-listings',
     InvocationType: 'Event',
   }).promise()
     .catch((err) => console.log(err, err.stack)),
-  url: 'https://newyork.craigslist.org/d/vacation-rentals/search/vac',
+  url: 'https://newyork.craigslist.org/search/apa',
   config: {
-    name: 'vacation-listings',
+    name: 'apartment-listings',
     concurrencyLimit: 2,
     depthLimit: 100,
     delay: 3000,

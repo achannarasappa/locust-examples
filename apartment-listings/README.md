@@ -1,6 +1,6 @@
-# vacation listings
+# apartment listings
 
-Example Locust web scraper to collect the latest 100 Craigslist vacation home listings in New York City. Runs on Amazon Web Services and uses RDS, ElasticCache, and AWS Lambda.
+Example Locust web scraper to collect the latest 100 Craigslist apartment home listings in New York City. Runs on Amazon Web Services and uses RDS, ElasticCache, and AWS Lambda.
 
 ## Cloud
 
@@ -34,7 +34,7 @@ More information in the [deployment guide](https://locust.dev/docs/deploy)
 ```sh
 aws lambda invoke \
 --invocation-type Event \
---function-name vacation-listings \
+--function-name apartment-listings \
 --region us-east-1  \
 --profile default \
 out.txt

@@ -45,7 +45,7 @@ module "db" {
   source  = "terraform-aws-modules/rds/aws"
   version = "~> 2.0"
 
-  identifier = "vacation-listings-postgres"
+  identifier = "apartment-listings-postgres"
 
   engine            = "postgres"
   engine_version    = "10.10"
@@ -82,7 +82,7 @@ module "locust" {
 }
 
 resource "aws_lambda_function" "locust_job" {
-  function_name    = "vacation-listings"
+  function_name    = "apartment-listings"
   filename         = var.package
   source_code_hash = filebase64sha256(var.package)
 

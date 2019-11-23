@@ -1,7 +1,7 @@
 {
-  "name": "vacation-listings",
+  "name": "apartment-listings",
   "version": "1.0.0",
-  "description": "Example Locust web scraper to collect the latest 100 Craigslist vacation home listings in New York City",
+  "description": "Example Locust web scraper to collect the latest 100 Craigslist apartment home listings in New York City",
   "main": "src/handler.js",
   "scripts": {
     "build": "rm -f ./infra/src.zip && npm install && zip -r ./infra/src.zip ./src package*.json node_modules",

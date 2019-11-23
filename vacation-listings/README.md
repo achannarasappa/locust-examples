@@ -8,16 +8,21 @@ Example Locust web scraper to collect the latest 100 Craigslist vacation home li
 
 1. Setup and configure [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html)
 1. Install [terraform](https://www.terraform.io/downloads.html)
+    * Run `terraform init` in the `infra` directory
 
 ### Deploy
 
-1. Zip source from project root
+1. Zip source
     ```sh
     npm run build
     ```
+1. Generate postgres password
+    ```sh
+    echo "postgres_password=\"$(openssl rand -base64 14)\"" > infra/terraform.tfvars
+    ```
 1. Deploy infrastructure and source
     ```sh
-    terraform apply
+    cd infra && terraform apply
     ```
 
 ### Invoke

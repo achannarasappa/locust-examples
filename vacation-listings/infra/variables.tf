@@ -12,3 +12,7 @@ variable "postgres_password" {
 variable "postgres_database" {
   default = "postgres"
 }
+
+variable "postgres_port" {
+  default = "5432"
+}

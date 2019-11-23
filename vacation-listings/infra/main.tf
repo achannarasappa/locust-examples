@@ -49,7 +49,7 @@ module "db" {
   name     = var.postgres_database
   username = var.postgres_user
   password = var.postgres_password
-  port     = "5432"
+  port     = var.postgres_port
 
   vpc_security_group_ids = ["${module.locust.security_group_id}"]
 
@@ -96,6 +96,7 @@ resource "aws_lambda_function" "locust_job" {
       POSTGRES_USER     = "${var.postgres_user}"
       POSTGRES_PASSWORD = "${var.postgres_password}"
       POSTGRES_DATABASE = "${var.postgres_database}"
+      POSTGRES_PORT     = "${var.postgres_port}"
     }
   }
 

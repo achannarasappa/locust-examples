@@ -10,7 +10,7 @@ const saveListing = async (listing) => {
     database: process.env.POSTGRES_DATABASE || 'postgres',
     user: process.env.POSTGRES_USER || 'postgres',
     password: process.env.POSTGRES_PASSWORD || 'postgres',
-    port: 5432,
+    port: process.env.POSTGRES_PORT || 5432,
   })
   await client
     .connect();

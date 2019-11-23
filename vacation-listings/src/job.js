@@ -6,9 +6,10 @@ const lambda = new AWS.Lambda({ apiVersion: '2015-03-31' });
 const saveListing = async (listing) => {
 
   const client = new Client({
-    user: 'postgres',
     host: process.env.POSTGRES_HOST || 'localhost',
-    database: 'postgres',
+    database: process.env.POSTGRES_DATABASE || 'postgres',
+    user: process.env.POSTGRES_USER || 'postgres',
+    password: process.env.POSTGRES_PASSWORD || 'postgres',
     port: 5432,
   })
   await client

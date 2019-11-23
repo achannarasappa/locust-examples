@@ -38,7 +38,7 @@ module "db" {
   source  = "terraform-aws-modules/rds/aws"
   version = "~> 2.0"
 
-  identifier = "listing-postgres"
+  identifier = "vacation-listings-postgres"
 
   engine            = "postgres"
   engine_version    = "10.10"
@@ -46,9 +46,9 @@ module "db" {
   allocated_storage = 5
   storage_encrypted = false
 
-  name     = "postgres"
-  username = "postgres"
-  password = "postgres"
+  name     = var.postgres_database
+  username = var.postgres_user
+  password = var.postgres_password
   port     = "5432"
 
   vpc_security_group_ids = ["${module.locust.security_group_id}"]
@@ -77,7 +77,7 @@ resource "aws_lambda_function" "locust_job" {
   filename         = var.package
   source_code_hash = filebase64sha256(var.package)
 
-  handler = "handler.start"
+  handler = "src/handler.start"
   runtime = "nodejs10.x"
   timeout = 15
 
@@ -90,8 +90,12 @@ resource "aws_lambda_function" "locust_job" {
 
   environment {
     variables = {
-      CHROME_HOST = "${module.locust.chrome_hostname}"
-      REDIS_HOST  = "${module.locust.redis_hostname}"
+      CHROME_HOST       = "${module.locust.chrome_hostname}"
+      REDIS_HOST        = "${module.locust.redis_hostname}"
+      POSTGRES_HOST     = "${module.db.this_db_instance_endpoint}"
+      POSTGRES_USER     = "${var.postgres_user}"
+      POSTGRES_PASSWORD = "${var.postgres_password}"
+      POSTGRES_DATABASE = "${var.postgres_database}"
     }
   }
 

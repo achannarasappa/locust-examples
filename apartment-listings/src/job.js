@@ -76,7 +76,7 @@ module.exports = {
     'location': await $('.postingtitletext small'),
     'datetime': await page.$eval('.postinginfo time', (el) => el.getAttribute('datetime')).catch(() => null),
     'images': await page.$$eval('#thumbs .thumb', (elements) => elements.map((el) => el.getAttribute('href'))).catch(() => null),
-    'attributes': await page.$$eval('.mapAndAttrs p.attrgroup:nth-of-type(2) span', (elements) => elements.map((el) => el.textContent)).catch(() => null),
+    'attributes': await page.$$eval('.mapAndAttrs p.attrgroup:not(:nth-of-type(1)) span', (elements) => elements.map((el) => el.textContent)).catch(() => null),
     'google_maps_link': await page.$eval('.mapaddress a', (el) => el.getAttribute('href')).catch(() => null),
     'description': await $('#postingbody'),
   }),

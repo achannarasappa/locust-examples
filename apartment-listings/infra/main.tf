@@ -6,7 +6,7 @@ provider "aws" {
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
-  name = "locust"
+  name = "apartment-listings"
 
   cidr = "10.0.0.0/16"
 
@@ -18,10 +18,10 @@ module "vpc" {
   single_nat_gateway = true
 
   public_subnet_tags = {
-    Name = "locust-public"
+    Name = "apartment-listings-public"
   }
   private_subnet_tags = {
-    Name = "locust-private"
+    Name = "apartment-listings-private"
   }
 
   tags = {
@@ -30,7 +30,7 @@ module "vpc" {
   }
 
   vpc_tags = {
-    Name = "locust-vpc"
+    Name = "apartment-listings-vpc"
   }
 
   create_database_subnet_group           = true
@@ -81,7 +81,7 @@ module "locust" {
   vpc_id             = module.vpc.vpc_id
 }
 
-resource "aws_lambda_function" "locust_job" {
+resource "aws_lambda_function" "apartment_listings_crawler" {
   function_name    = "apartment-listings"
   filename         = var.package
   source_code_hash = filebase64sha256(var.package)
@@ -109,6 +109,25 @@ resource "aws_lambda_function" "locust_job" {
     }
   }
 
+}
+
+resource "aws_lambda_permission" "apartment_listings_crawler" {
+  action        = "lambda:InvokeFunction"
+  function_name = "${aws_lambda_function.apartment_listings_crawler.function_name}"
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.apartment_listings_crawler.arn
+}
+
+resource "aws_cloudwatch_event_rule" "apartment_listings_crawler" {
+  name        = "apartment_listings_crawler"
+  description = "Crawls apartment listings on a schedule"
+
+  schedule_expression = "rate(1 day)"
+}
+
+resource "aws_cloudwatch_event_target" "apartment_listings_crawler" {
+  rule      = "${aws_cloudwatch_event_rule.apartment_listings_crawler.name}"
+  arn       = "${aws_lambda_function.apartment_listings_crawler.arn}"
 }
 
 data "http" "myip" {

@@ -35,6 +35,8 @@ module "vpc" {
   create_database_internet_gateway_route = true
   enable_dns_hostnames                   = true
   enable_dns_support                     = true
+  enable_nat_gateway = true	
+  single_nat_gateway = true
 }
 
 module "db" {
@@ -84,12 +86,12 @@ resource "aws_lambda_function" "apartment_listings_crawler" {
 
   handler = "src/handler.start"
   runtime = "nodejs10.x"
-  timeout = 60
+  timeout = 30
 
   role = module.locust.iam_role_arn
 
   vpc_config {
-    subnet_ids         = concat(module.vpc.public_subnets, module.vpc.private_subnets)
+    subnet_ids         = module.vpc.private_subnets
     security_group_ids = [module.locust.security_group_id]
   }
 

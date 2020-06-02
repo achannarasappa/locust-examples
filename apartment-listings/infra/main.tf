@@ -14,9 +14,6 @@ module "vpc" {
   private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
   public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
 
-  enable_nat_gateway = true
-  single_nat_gateway = true
-
   public_subnet_tags = {
     Name = "apartment-listings-public"
   }
@@ -36,9 +33,8 @@ module "vpc" {
   create_database_subnet_group           = true
   create_database_subnet_route_table     = true
   create_database_internet_gateway_route = true
-
-  enable_dns_hostnames = true
-  enable_dns_support   = true
+  enable_dns_hostnames                   = true
+  enable_dns_support                     = true
 }
 
 module "db" {
@@ -60,7 +56,7 @@ module "db" {
 
   publicly_accessible = true
 
-  vpc_security_group_ids = ["${module.locust.security_group_id}"]
+  vpc_security_group_ids = [module.locust.security_group_id]
 
   maintenance_window      = "Mon:00:00-Mon:03:00"
   backup_window           = "03:00-06:00"
@@ -90,22 +86,22 @@ resource "aws_lambda_function" "apartment_listings_crawler" {
   runtime = "nodejs10.x"
   timeout = 60
 
-  role = "${module.locust.iam_role_arn}"
+  role = module.locust.iam_role_arn
 
   vpc_config {
     subnet_ids         = concat(module.vpc.public_subnets, module.vpc.private_subnets)
-    security_group_ids = ["${module.locust.security_group_id}"]
+    security_group_ids = [module.locust.security_group_id]
   }
 
   environment {
     variables = {
-      CHROME_HOST       = "${module.locust.chrome_hostname}"
-      REDIS_HOST        = "${module.locust.redis_hostname}"
-      POSTGRES_HOST     = "${module.db.this_db_instance_address}"
-      POSTGRES_USER     = "${var.postgres_user}"
-      POSTGRES_PASSWORD = "${var.postgres_password}"
-      POSTGRES_DATABASE = "${var.postgres_database}"
-      POSTGRES_PORT     = "${var.postgres_port}"
+      CHROME_HOST       = module.locust.chrome_hostname
+      REDIS_HOST        = module.locust.redis_hostname
+      POSTGRES_HOST     = module.db.this_db_instance_address
+      POSTGRES_USER     = var.postgres_user
+      POSTGRES_PASSWORD = var.postgres_password
+      POSTGRES_DATABASE = var.postgres_database
+      POSTGRES_PORT     = var.postgres_port
     }
   }
 
@@ -113,7 +109,7 @@ resource "aws_lambda_function" "apartment_listings_crawler" {
 
 resource "aws_lambda_permission" "apartment_listings_crawler" {
   action        = "lambda:InvokeFunction"
-  function_name = "${aws_lambda_function.apartment_listings_crawler.function_name}"
+  function_name = aws_lambda_function.apartment_listings_crawler.function_name
   principal     = "events.amazonaws.com"
   source_arn    = aws_cloudwatch_event_rule.apartment_listings_crawler.arn
 }
@@ -126,8 +122,8 @@ resource "aws_cloudwatch_event_rule" "apartment_listings_crawler" {
 }
 
 resource "aws_cloudwatch_event_target" "apartment_listings_crawler" {
-  rule      = "${aws_cloudwatch_event_rule.apartment_listings_crawler.name}"
-  arn       = "${aws_lambda_function.apartment_listings_crawler.arn}"
+  rule = aws_cloudwatch_event_rule.apartment_listings_crawler.name
+  arn  = aws_lambda_function.apartment_listings_crawler.arn
 }
 
 data "http" "myip" {
@@ -141,7 +137,7 @@ resource "aws_security_group_rule" "postgres_remote_connection" {
   protocol    = "-1"
   cidr_blocks = ["${chomp(data.http.myip.body)}/32"]
 
-  security_group_id = "${module.locust.security_group_id}"
+  security_group_id = module.locust.security_group_id
 }
 
 resource "null_resource" "db_setup" {

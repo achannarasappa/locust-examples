@@ -3,6 +3,19 @@ provider "aws" {
   region  = "us-east-1"
 }
 
+module "locust" {
+  source             = "github.com/achannarasappa/locust-aws-terraform"
+  private_subnet_ids = module.vpc.private_subnets
+  vpc_id             = module.vpc.vpc_id
+}
+
+data "http" "myip" {
+  url = "http://ipv4.icanhazip.com"
+}
+
+######
+# Network
+######
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
 
@@ -23,6 +36,10 @@ module "vpc" {
   one_nat_gateway_per_az = false
 }
 
+
+######
+# Storage
+######
 resource "aws_rds_cluster" "apartment_listings_aurora" {
   cluster_identifier      = "apartment-listings-aurora"
   engine                  = "aurora-postgresql"
@@ -48,6 +65,62 @@ resource "aws_db_subnet_group" "apartment_listings_aurora" {
   subnet_ids = module.vpc.private_subnets
 }
 
+######
+# Compute
+######
+
+resource "aws_lambda_function" "apartment_listings_crawler" {
+  function_name    = "apartment-listings"
+  filename         = var.package
+  source_code_hash = filebase64sha256(var.package)
+
+  handler = "src/handler.start"
+  runtime = "nodejs10.x"
+  timeout = 30
+
+  role = module.locust.iam_role_arn
+
+  vpc_config {
+    subnet_ids         = module.vpc.private_subnets
+    security_group_ids = [module.locust.security_group_id]
+  }
+
+  environment {
+    variables = {
+      CHROME_HOST       = module.locust.chrome_hostname
+      REDIS_HOST        = module.locust.redis_hostname
+      POSTGRES_HOST     = aws_rds_cluster.apartment_listings_aurora.endpoint
+      POSTGRES_USER     = var.postgres_user
+      POSTGRES_PASSWORD = var.postgres_password
+      POSTGRES_DATABASE = var.postgres_database
+      POSTGRES_PORT     = var.postgres_port
+    }
+  }
+
+}
+
+resource "aws_lambda_permission" "apartment_listings_crawler" {
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.apartment_listings_crawler.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.apartment_listings_crawler.arn
+}
+
+resource "aws_cloudwatch_event_rule" "apartment_listings_crawler" {
+  name        = "apartment_listings_crawler"
+  description = "Crawls apartment listings on a schedule"
+
+  schedule_expression = "rate(1 day)"
+}
+
+resource "aws_cloudwatch_event_target" "apartment_listings_crawler" {
+  rule = aws_cloudwatch_event_rule.apartment_listings_crawler.name
+  arn  = aws_lambda_function.apartment_listings_crawler.arn
+}
+
+######
+# Setup
+######
 resource "aws_security_group" "setup" {
   name   = "setup"
   vpc_id = module.vpc.vpc_id
@@ -100,70 +173,7 @@ resource "aws_instance" "setup" {
     inline = [
       "sudo apt-get update && sudo apt-get install postgresql-client -y",
       "PGPASSWORD=${var.postgres_password} psql -h ${aws_rds_cluster.apartment_listings_aurora.endpoint} -p ${var.postgres_port} -f setup.sql ${var.postgres_database} ${var.postgres_user}",
+      "sudo poweroff",
     ]
   }
-}
-
-output "instance_ip_addr" {
-  value       = aws_instance.setup.public_ip
-  description = "The public IP address of the setup server instance."
-}
-
-module "locust" {
-  source             = "github.com/achannarasappa/locust-aws-terraform"
-  private_subnet_ids = module.vpc.private_subnets
-  vpc_id             = module.vpc.vpc_id
-}
-
-resource "aws_lambda_function" "apartment_listings_crawler" {
-  function_name    = "apartment-listings"
-  filename         = var.package
-  source_code_hash = filebase64sha256(var.package)
-
-  handler = "src/handler.start"
-  runtime = "nodejs10.x"
-  timeout = 30
-
-  role = module.locust.iam_role_arn
-
-  vpc_config {
-    subnet_ids         = module.vpc.private_subnets
-    security_group_ids = [module.locust.security_group_id]
-  }
-
-  environment {
-    variables = {
-      CHROME_HOST       = module.locust.chrome_hostname
-      REDIS_HOST        = module.locust.redis_hostname
-      POSTGRES_HOST     = aws_rds_cluster.apartment_listings_aurora.endpoint
-      POSTGRES_USER     = var.postgres_user
-      POSTGRES_PASSWORD = var.postgres_password
-      POSTGRES_DATABASE = var.postgres_database
-      POSTGRES_PORT     = var.postgres_port
-    }
-  }
-
-}
-
-resource "aws_lambda_permission" "apartment_listings_crawler" {
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.apartment_listings_crawler.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.apartment_listings_crawler.arn
-}
-
-resource "aws_cloudwatch_event_rule" "apartment_listings_crawler" {
-  name        = "apartment_listings_crawler"
-  description = "Crawls apartment listings on a schedule"
-
-  schedule_expression = "rate(1 day)"
-}
-
-resource "aws_cloudwatch_event_target" "apartment_listings_crawler" {
-  rule = aws_cloudwatch_event_rule.apartment_listings_crawler.name
-  arn  = aws_lambda_function.apartment_listings_crawler.arn
-}
-
-data "http" "myip" {
-  url = "http://ipv4.icanhazip.com"
 }

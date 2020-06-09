@@ -104,6 +104,7 @@ module.exports = {
     concurrencyLimit: 2,
     depthLimit: 100,
     delay: 3000,
+    logLevel: 'debug',
   },
   filter: (links) => links.filter(link => isIndexUrl(link) || isListingUrl(link)),
   connection: {

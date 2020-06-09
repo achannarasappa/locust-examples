@@ -14,68 +14,104 @@ module "vpc" {
   private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
   public_subnets  = ["10.0.101.0/24", "10.0.102.0/24"]
 
-  public_subnet_tags = {
-    Name = "apartment-listings-public"
-  }
-  private_subnet_tags = {
-    Name = "apartment-listings-private"
-  }
-
-  tags = {
-    Owner       = "user"
-    Environment = "dev"
-  }
-
   vpc_tags = {
     Name = "apartment-listings-vpc"
   }
 
-  create_database_subnet_group           = true
-  create_database_subnet_route_table     = true
-  create_database_internet_gateway_route = true
-  enable_dns_hostnames                   = true
-  enable_dns_support                     = true
-  enable_nat_gateway = true	
-  single_nat_gateway = true
+  enable_nat_gateway     = true
+  single_nat_gateway     = true
+  one_nat_gateway_per_az = false
 }
 
-module "db" {
-  source  = "terraform-aws-modules/rds/aws"
-  version = "~> 2.0"
+resource "aws_rds_cluster" "apartment_listings_aurora" {
+  cluster_identifier      = "apartment-listings-aurora"
+  engine                  = "aurora-postgresql"
+  engine_mode             = "serverless"
+  db_subnet_group_name    = aws_db_subnet_group.apartment_listings_aurora.name
+  database_name           = var.postgres_database
+  master_username         = var.postgres_user
+  master_password         = var.postgres_password
+  backup_retention_period = 1
+  preferred_backup_window = "03:00-06:00"
+  vpc_security_group_ids  = [aws_security_group.setup.id, module.locust.security_group_id]
 
-  identifier = "apartment-listings-postgres"
+  scaling_configuration {
+    max_capacity = 4
+  }
 
-  engine            = "postgres"
-  engine_version    = "10.10"
-  instance_class    = "db.t3.micro"
-  allocated_storage = 5
-  storage_encrypted = false
+  apply_immediately   = true
+  skip_final_snapshot = true
+}
 
-  name     = var.postgres_database
-  username = var.postgres_user
-  password = var.postgres_password
-  port     = var.postgres_port
+resource "aws_db_subnet_group" "apartment_listings_aurora" {
+  name       = "apartment_listings_aurora"
+  subnet_ids = module.vpc.private_subnets
+}
 
-  publicly_accessible = true
+resource "aws_security_group" "setup" {
+  name   = "setup"
+  vpc_id = module.vpc.vpc_id
 
-  vpc_security_group_ids = [module.locust.security_group_id]
+  ingress {
+    description = "SSH to VPC"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "TCP"
+    cidr_blocks = ["${chomp(data.http.myip.body)}/32"]
+  }
 
-  maintenance_window      = "Mon:00:00-Mon:03:00"
-  backup_window           = "03:00-06:00"
-  backup_retention_period = 0
-  family                  = "postgres10"
-  major_engine_version    = "10.10"
+  ingress {
+    protocol  = "-1"
+    self      = true
+    from_port = 0
+    to_port   = 0
+  }
 
-  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
 
-  subnet_ids          = module.vpc.public_subnets
-  deletion_protection = false
+resource "aws_instance" "setup" {
+  ami           = "ami-04b9e92b5572fa0d1"
+  instance_type = "t2.micro"
+
+  vpc_security_group_ids      = [aws_security_group.setup.id]
+  subnet_id                   = module.vpc.public_subnets[0]
+  associate_public_ip_address = true
+  key_name                    = "ani" # replace with a public key in AWS
+
+  connection {
+    type        = "ssh"
+    user        = "ubuntu"
+    private_key = file("~/.ssh/id_rsa") # replace with the location of corresponding private key above
+    host        = aws_instance.setup.public_ip
+  }
+
+  provisioner "file" {
+    source      = "../db/schema/setup.sql"
+    destination = "/home/ubuntu/setup.sql"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo apt-get update && sudo apt-get install postgresql-client -y",
+      "PGPASSWORD=${var.postgres_password} psql -h ${aws_rds_cluster.apartment_listings_aurora.endpoint} -p ${var.postgres_port} -f setup.sql ${var.postgres_database} ${var.postgres_user}",
+    ]
+  }
+}
+
+output "instance_ip_addr" {
+  value       = aws_instance.setup.public_ip
+  description = "The public IP address of the setup server instance."
 }
 
 module "locust" {
   source             = "github.com/achannarasappa/locust-aws-terraform"
   private_subnet_ids = module.vpc.private_subnets
-  public_subnet_ids  = module.vpc.public_subnets
   vpc_id             = module.vpc.vpc_id
 }
 
@@ -99,7 +135,7 @@ resource "aws_lambda_function" "apartment_listings_crawler" {
     variables = {
       CHROME_HOST       = module.locust.chrome_hostname
       REDIS_HOST        = module.locust.redis_hostname
-      POSTGRES_HOST     = module.db.this_db_instance_address
+      POSTGRES_HOST     = aws_rds_cluster.apartment_listings_aurora.endpoint
       POSTGRES_USER     = var.postgres_user
       POSTGRES_PASSWORD = var.postgres_password
       POSTGRES_DATABASE = var.postgres_database
@@ -130,20 +166,4 @@ resource "aws_cloudwatch_event_target" "apartment_listings_crawler" {
 
 data "http" "myip" {
   url = "http://ipv4.icanhazip.com"
-}
-
-resource "aws_security_group_rule" "postgres_remote_connection" {
-  type        = "ingress"
-  from_port   = tonumber(var.postgres_port)
-  to_port     = tonumber(var.postgres_port)
-  protocol    = "-1"
-  cidr_blocks = ["${chomp(data.http.myip.body)}/32"]
-
-  security_group_id = module.locust.security_group_id
-}
-
-resource "null_resource" "db_setup" {
-  provisioner "local-exec" {
-    command = "PGPASSWORD=${var.postgres_password} psql -h ${module.db.this_db_instance_address} -p ${var.postgres_port} -f ../db/schema/setup.sql ${var.postgres_database} ${var.postgres_user}"
-  }
 }

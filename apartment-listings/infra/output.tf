@@ -1,14 +1,11 @@
-output "redis_host" {
+output "private_redis_endpoint" {
   value = module.locust.redis_hostname
 }
-output "postgres_host" {
-  value = module.db.this_db_instance_address
+
+output "private_aurora_endpoint" {
+  value = aws_rds_cluster.apartment_listings_aurora.endpoint
 }
 
-output "postgres_database" {
-  value = module.db.this_db_instance_name
-}
-
-output "postgres_user" {
-  value = module.db.this_db_instance_username
+output "bastion_host" {
+  value = aws_instance.setup.public_ip
 }
